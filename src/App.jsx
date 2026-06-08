@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import FluidBackground from './FluidBackground';
 import { createAudioEngine } from './audioEngine';
+import { createHandTracker } from './handTracker';
 import './App.css';
 
 // Color presets. `key` is the keyboard shortcut; `color` is a hex string
@@ -34,6 +35,16 @@ const LAYOUTS = [
 // How hard audio energy pushes the liquid.
 const AUDIO_FORCE = 5600;
 
+// How hard a moving fingertip pushes the liquid. The fluid engine multiplies a
+// per-frame normalized delta by its own SPLAT_FORCE (6000) for the mouse, so we
+// use a similar scale here for a matching feel.
+const HAND_FORCE = 6000;
+
+// Below this per-frame movement we don't paint (keeps a still hand from
+// flooding the surface with ink — same idea as the mouse only painting when it
+// moves).
+const HAND_MOVE_THRESHOLD = 0.0025;
+
 // Tiny HSV->RGB (0..1) helper for the background mood tint.
 function hsvToRgb01(h, s, v) {
   const i = Math.floor(h * 6);
@@ -66,8 +77,15 @@ export default function App() {
   const [fileName, setFileName] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
+  // Camera (hand) control.
+  const [cameraOn, setCameraOn] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
+
   const fluidRef = useRef(null);
   const fileInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const overlayRef = useRef(null);
 
   // Create the audio engine once.
   const audioEngineRef = useRef(null);
@@ -75,9 +93,17 @@ export default function App() {
     audioEngineRef.current = createAudioEngine();
   }
 
+  // Create the hand tracker once.
+  const handTrackerRef = useRef(null);
+  if (!handTrackerRef.current) {
+    handTrackerRef.current = createHandTracker();
+  }
+
   // Per-frame state kept without re-rendering.
   const beatRef = useRef({ avg: 0, cooldown: 0 });
   const bgRef = useRef({ r: 0, g: 0, b: 0 });
+  // Per-hand smoothed position + pinch latch (so one pinch fires one bomb).
+  const handStateRef = useRef([]);
 
   const pickerValue = color ?? '#19e3ff';
   const isRainbow = color === null;
@@ -205,6 +231,88 @@ export default function App() {
     return () => engine.stop();
   }, []);
 
+  // Translate each camera frame into liquid motion. Your index fingertip acts
+  // like the cursor (a moving finger trails ink), and a pinch (thumb + index
+  // together) drops a bomb. We also draw a small preview with a dot on each
+  // tracked fingertip so you can see it working.
+  useEffect(() => {
+    if (!cameraOn) return undefined;
+
+    const tracker = handTrackerRef.current;
+    const states = handStateRef.current;
+
+    const unsubscribe = tracker.subscribe(({ hands }) => {
+      const fluid = fluidRef.current;
+      const overlay = overlayRef.current;
+      const ctx = overlay?.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+      hands.forEach((hand, i) => {
+        // Camera image -> fluid coordinates. We MIRROR x (so it feels like a
+        // mirror: move your hand right, the ripple goes right) and FLIP y
+        // (the fluid measures y from the bottom, the image from the top).
+        const targetX = 1 - hand.x;
+        const targetY = 1 - hand.y;
+
+        const prev = states[i] || { x: targetX, y: targetY, latched: false };
+        // Smooth the position a little to calm camera jitter.
+        const sx = prev.x + (targetX - prev.x) * 0.5;
+        const sy = prev.y + (targetY - prev.y) * 0.5;
+        const vx = sx - prev.x;
+        const vy = sy - prev.y;
+        const speed = Math.hypot(vx, vy);
+
+        if (fluid && speed > HAND_MOVE_THRESHOLD) {
+          fluid.addSplat(sx, sy, vx * HAND_FORCE, vy * HAND_FORCE, {
+            hue: sx, // only used when ink color is set to Rainbow
+            colorBoost: 1 + Math.min(2.5, speed * 10),
+            radiusMul: 0.7 + Math.min(2, speed * 8),
+          });
+        }
+
+        // Pinch -> bomb, with hysteresis so one pinch = exactly one bomb.
+        let latched = prev.latched;
+        if (hand.pinchRatio < 0.42 && !latched) {
+          fluid?.bomb(sx, sy);
+          latched = true;
+        } else if (hand.pinchRatio > 0.55) {
+          latched = false;
+        }
+
+        states[i] = { x: sx, y: sy, latched };
+
+        // Draw the preview marker (the preview video is mirrored in CSS, so we
+        // mirror the dot's x to line it up with where your finger appears).
+        if (ctx) {
+          const px = (1 - hand.x) * overlay.width;
+          const py = hand.y * overlay.height;
+          ctx.beginPath();
+          ctx.arc(px, py, hand.pinch ? 10 : 6, 0, Math.PI * 2);
+          ctx.fillStyle = hand.pinch ? '#ff5cc8' : '#19e3ff';
+          ctx.fill();
+          if (hand.pinch) {
+            ctx.beginPath();
+            ctx.arc(px, py, 16, 0, Math.PI * 2);
+            ctx.strokeStyle = '#ff5cc8';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+        }
+      });
+
+      // Forget hands that are no longer visible.
+      states.length = hands.length;
+    });
+
+    return unsubscribe;
+  }, [cameraOn]);
+
+  // Stop the camera when the app unmounts.
+  useEffect(() => {
+    const tracker = handTrackerRef.current;
+    return () => tracker.stop();
+  }, []);
+
   async function enableMic() {
     try {
       await audioEngineRef.current.useMic();
@@ -259,6 +367,35 @@ export default function App() {
     fluidRef.current?.setBackColor(bgRef.current);
   }
 
+  async function enableCamera() {
+    setCameraError(null);
+    setCameraLoading(true);
+    try {
+      await handTrackerRef.current.start(videoRef.current);
+      handStateRef.current = [];
+      setCameraOn(true);
+    } catch (err) {
+      // Distinguish a blocked camera from a model/network load failure.
+      const denied = err?.name === 'NotAllowedError';
+      setCameraError(
+        denied
+          ? 'Camera access was blocked. Allow the camera in your browser, then try again.'
+          : 'Could not start hand tracking. Check your connection and that a camera is available.',
+      );
+      setCameraOn(false);
+    } finally {
+      setCameraLoading(false);
+    }
+  }
+
+  function disableCamera() {
+    handTrackerRef.current.stop();
+    setCameraOn(false);
+    setCameraError(null);
+    const overlay = overlayRef.current;
+    overlay?.getContext('2d')?.clearRect(0, 0, overlay.width, overlay.height);
+  }
+
   return (
     <div className="app">
       <FluidBackground ref={fluidRef} color={color} brushSize={brushSize} />
@@ -269,8 +406,9 @@ export default function App() {
           Touch the <span className="hero-accent">water</span>.
         </h1>
         <p className="hero-sub">
-          Move your cursor to trail through the surface, or let it dance to your
-          voice or a song. Click anywhere to drop a bomb.
+          Move your cursor to trail through the surface, let it dance to your
+          voice or a song, or steer it with your hand on camera. Click anywhere
+          to drop a bomb.
         </p>
       </header>
 
@@ -400,6 +538,47 @@ export default function App() {
           {audioError && <p className="audio-error">{audioError}</p>}
         </div>
 
+        <div className="panel-row">
+          <span className="panel-label">Camera control</span>
+          <div className="audio-modes">
+            <button
+              className={`audio-mode ${!cameraOn ? 'audio-mode--active' : ''}`}
+              onClick={disableCamera}
+            >
+              Off
+            </button>
+            <button
+              className={`audio-mode ${cameraOn ? 'audio-mode--active' : ''}`}
+              onClick={enableCamera}
+              disabled={cameraLoading}
+            >
+              {cameraLoading ? 'Starting…' : 'Hand tracking'}
+            </button>
+          </div>
+
+          {/* The video is always mounted (so its ref exists when we start the
+              camera) but only shown as a preview while tracking is on. */}
+          <div
+            className={`camera-preview ${cameraOn ? '' : 'camera-preview--hidden'}`}
+          >
+            <video ref={videoRef} className="camera-video" playsInline muted />
+            <canvas
+              ref={overlayRef}
+              className="camera-overlay"
+              width={160}
+              height={120}
+            />
+          </div>
+
+          {cameraOn && (
+            <p className="audio-status">
+              Move your index finger to trail ink · pinch thumb + finger to drop a bomb.
+            </p>
+          )}
+
+          {cameraError && <p className="audio-error">{cameraError}</p>}
+        </div>
+
         <button className="bomb-button" onClick={() => fluidRef.current?.bomb()}>
           Drop a bomb
         </button>
@@ -409,7 +588,7 @@ export default function App() {
         </p>
       </section>
 
-      <footer className="hint">click · drag · speak · play a song</footer>
+      <footer className="hint">click · drag · speak · play a song · wave your hand</footer>
     </div>
   );
 }
