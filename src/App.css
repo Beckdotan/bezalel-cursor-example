@@ -1,0 +1,392 @@
+.app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* The liquid surface fills the whole screen and sits behind everything.
+   It still receives mouse/touch directly, so ripples work everywhere. */
+.fluid-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 0;
+  touch-action: none;
+}
+
+/* Hero text floats on top but lets the pointer pass through to the water. */
+.hero {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+  max-width: 720px;
+  padding: clamp(28px, 6vw, 80px);
+}
+
+.eyebrow {
+  margin: 0 0 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.32em;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(44px, 9vw, 104px);
+  line-height: 0.98;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #fff;
+  text-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
+}
+
+.hero-accent {
+  background: linear-gradient(120deg, #58e7ff, #b388ff 60%, #ff79d8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero-sub {
+  margin: 22px 0 0;
+  max-width: 460px;
+  font-size: clamp(15px, 2.2vw, 18px);
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.72);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
+}
+
+/* Glassy control panel, bottom-right. */
+.panel {
+  position: fixed;
+  right: clamp(16px, 3vw, 32px);
+  bottom: clamp(16px, 3vw, 32px);
+  z-index: 3;
+  width: min(320px, calc(100vw - 32px));
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  border-radius: 20px;
+  background: rgba(16, 20, 30, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+}
+
+.panel--closed {
+  transform: translateY(140%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.panel--open {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.panel-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* Color input styled as a neat pill. */
+.color-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.color-input input[type='color'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: none;
+  border-radius: 14px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.color-input input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-input input[type='color']::-webkit-color-swatch {
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 14px;
+}
+
+.color-input-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.swatch {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.swatch:hover {
+  transform: scale(1.08);
+}
+
+.swatch--active {
+  border-color: #fff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.18);
+}
+
+/* Small key letter shown on each preset swatch. */
+.swatch-key {
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+
+/* Brush size selector (1..5). */
+.brush-sizes {
+  display: flex;
+  gap: 8px;
+}
+
+.brush-size {
+  flex: 1;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.15s ease,
+    border-color 0.15s ease, color 0.15s ease;
+}
+
+.brush-size:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.brush-size--active {
+  background: linear-gradient(120deg, #58e7ff, #b388ff);
+  border-color: transparent;
+  color: #04060a;
+}
+
+/* Audio mode selector. */
+.audio-modes {
+  display: flex;
+  gap: 8px;
+}
+
+.audio-mode {
+  flex: 1;
+  height: 38px;
+  padding: 0 6px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.audio-mode:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.audio-mode--active {
+  background: linear-gradient(120deg, #58e7ff, #b388ff);
+  border-color: transparent;
+  color: #04060a;
+}
+
+/* Motion layout picker (only shown while audio is on). */
+.audio-layouts {
+  display: flex;
+  gap: 6px;
+}
+
+.audio-layout {
+  flex: 1;
+  height: 32px;
+  padding: 0 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.audio-layout:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.audio-layout--active {
+  background: rgba(120, 230, 255, 0.22);
+  border-color: rgba(120, 230, 255, 0.6);
+  color: #fff;
+}
+
+.audio-status {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: rgba(120, 230, 255, 0.85);
+}
+
+.audio-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.audio-play {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.audio-play:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.audio-file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.audio-error {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #ff8080;
+}
+
+.shortcut-hint {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.shortcut-hint b {
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.bomb-button {
+  margin-top: 2px;
+  padding: 13px 16px;
+  border: none;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #04060a;
+  cursor: pointer;
+  background: linear-gradient(120deg, #58e7ff, #b388ff);
+  transition: transform 0.12s ease, filter 0.15s ease;
+}
+
+.bomb-button:hover {
+  filter: brightness(1.08);
+}
+
+.bomb-button:active {
+  transform: scale(0.97);
+}
+
+.panel-toggle {
+  position: fixed;
+  right: clamp(16px, 3vw, 32px);
+  top: clamp(16px, 3vw, 32px);
+  z-index: 4;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(16, 20, 30, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.panel-toggle:hover {
+  background: rgba(30, 36, 50, 0.6);
+}
+
+.hint {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 1;
+  pointer-events: none;
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+@media (max-width: 560px) {
+  .panel {
+    left: clamp(16px, 3vw, 32px);
+    width: auto;
+  }
+}
