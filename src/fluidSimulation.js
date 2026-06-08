@@ -1409,6 +1409,14 @@ export default function initFluidSimulation(canvas, options = {}) {
     setBackColor(rgb) {
       config.BACK_COLOR = { r: rgb.r * 255, g: rgb.g * 255, b: rgb.b * 255 };
     },
+    // Live-tune the simulation. Only pass fields that are read every frame
+    // (CURL, VELOCITY_DISSIPATION, DENSITY_DISSIPATION, PRESSURE, SPLAT_FORCE,
+    // BLOOM_INTENSITY, SUNRAYS_WEIGHT). Toggling the on/off effect flags
+    // (SHADING/BLOOM/SUNRAYS) is NOT supported here because they need a shader
+    // recompile; vary their strength instead.
+    setParams(params) {
+      Object.assign(config, params);
+    },
     // Inject a single splat. x,y are 0..1 (y measured from the BOTTOM, like the
     // simulation's own coords). dx,dy are the push direction/force. Options let
     // an external driver (e.g. audio) control brightness, size and hue.

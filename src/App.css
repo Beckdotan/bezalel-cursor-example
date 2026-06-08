@@ -240,6 +240,36 @@
   color: #04060a;
 }
 
+/* Mood picker: swaps several fluid parameters at once. */
+.moods {
+  display: flex;
+  gap: 8px;
+}
+
+.mood {
+  flex: 1;
+  height: 38px;
+  padding: 0 6px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.mood:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.mood--active {
+  background: linear-gradient(120deg, #58e7ff, #b388ff);
+  border-color: transparent;
+  color: #04060a;
+}
+
 /* Motion layout picker (only shown while audio is on). */
 .audio-layouts {
   display: flex;

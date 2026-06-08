@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import FluidBackground from './FluidBackground';
+import FluidBackground, { MOODS } from './FluidBackground';
 import { createAudioEngine } from './audioEngine';
 import { createHandTracker } from './handTracker';
 import './App.css';
+
+// Order the mood buttons appear in the panel.
+const MOOD_LIST = ['smoke', 'paint'];
 
 // Color presets. `key` is the keyboard shortcut; `color` is a hex string
 // (or null for rainbow / auto-cycling mode).
@@ -68,6 +71,7 @@ export default function App() {
   // `color` is either a hex string or null (rainbow mode).
   const [color, setColor] = useState('#19e3ff');
   const [brushSize, setBrushSize] = useState(3);
+  const [mood, setMood] = useState('smoke');
   const [panelOpen, setPanelOpen] = useState(true);
 
   // Audio mode: 'off' | 'mic' | 'file'
@@ -398,7 +402,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <FluidBackground ref={fluidRef} color={color} brushSize={brushSize} />
+      <FluidBackground ref={fluidRef} color={color} brushSize={brushSize} mood={mood} />
 
       <header className="hero">
         <p className="eyebrow">interactive liquid</p>
@@ -470,6 +474,22 @@ export default function App() {
                 title={`Brush size ${size} (press ${size})`}
               >
                 {size}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="panel-row">
+          <span className="panel-label">Mood</span>
+          <div className="moods">
+            {MOOD_LIST.map((id) => (
+              <button
+                key={id}
+                className={`mood ${mood === id ? 'mood--active' : ''}`}
+                onClick={() => setMood(id)}
+                title={`${MOODS[id].label} feel`}
+              >
+                {MOODS[id].label}
               </button>
             ))}
           </div>
