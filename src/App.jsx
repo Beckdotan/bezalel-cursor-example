@@ -1,11 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
-import FluidBackground, { MOODS } from './FluidBackground';
+import FluidBackground, { MOODS, DEFAULT_PARAMS } from './FluidBackground';
 import { createAudioEngine } from './audioEngine';
 import { createHandTracker } from './handTracker';
 import './App.css';
 
 // Order the mood buttons appear in the panel.
-const MOOD_LIST = ['smoke', 'paint'];
+const MOOD_LIST = ['water', 'smoke', 'paint', 'neon'];
+
+// Advanced sliders: every live-tunable physics value, with a designer-friendly
+// label, the underlying engine key, a range and a step. `decimals` controls how
+// the current value is displayed.
+const SLIDERS = [
+  { key: 'CURL', label: 'Swirl (curl)', min: 0, max: 80, step: 1, decimals: 0 },
+  { key: 'SPLAT_FORCE', label: 'Push strength', min: 1000, max: 12000, step: 100, decimals: 0 },
+  { key: 'VELOCITY_DISSIPATION', label: 'Friction (motion fade)', min: 0, max: 4, step: 0.05, decimals: 2 },
+  { key: 'DENSITY_DISSIPATION', label: 'Ink fade', min: 0, max: 4, step: 0.05, decimals: 2 },
+  { key: 'PRESSURE', label: 'Pressure', min: 0, max: 1.2, step: 0.05, decimals: 2 },
+  { key: 'BLOOM_INTENSITY', label: 'Bloom strength', min: 0, max: 2, step: 0.05, decimals: 2 },
+  { key: 'SUNRAYS_WEIGHT', label: 'Rays strength', min: 0, max: 2, step: 0.05, decimals: 2 },
+];
 
 // Color presets. `key` is the keyboard shortcut; `color` is a hex string
 // (or null for rainbow / auto-cycling mode).
@@ -71,8 +84,71 @@ export default function App() {
   // `color` is either a hex string or null (rainbow mode).
   const [color, setColor] = useState('#19e3ff');
   const [brushSize, setBrushSize] = useState(3);
-  const [mood, setMood] = useState('smoke');
+  // `mood` is just which preset button is highlighted (null = custom, after the
+  // user moves a slider). `params` are the actual values driving the fluid.
+  const [mood, setMood] = useState('water');
+  const [params, setParams] = useState({ ...DEFAULT_PARAMS });
+  // Effect toggles (need a shader recompile, handled in FluidBackground).
+  // Sunrays defaults OFF because its symmetric "god ray" streaks can show up as
+  // a square on each side of bright moving spots.
+  const [bloom, setBloom] = useState(true);
+  const [sunrays, setSunrays] = useState(false);
+  const [shading, setShading] = useState(true);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
+
+  // User-saved presets, persisted in the browser (localStorage).
+  const [customMoods, setCustomMoods] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('customMoods') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [newMoodName, setNewMoodName] = useState('');
+
+  // Keep saved presets persisted whenever the list changes.
+  useEffect(() => {
+    localStorage.setItem('customMoods', JSON.stringify(customMoods));
+  }, [customMoods]);
+
+  // Pick a built-in mood preset: highlight it and load its full set of values.
+  function selectMood(id) {
+    setMood(id);
+    setParams({ ...MOODS[id].params });
+  }
+
+  // Move one advanced slider: update that single value and drop the mood
+  // highlight (we're now in "custom" territory).
+  function updateParam(key, value) {
+    setParams((p) => ({ ...p, [key]: value }));
+    setMood(null);
+  }
+
+  // Save the current look (slider values + effect toggles) as a named preset.
+  function saveCustomMood() {
+    const name = newMoodName.trim();
+    if (!name) return;
+    const id = `custom-${Date.now()}`;
+    const entry = { id, label: name, params: { ...params }, bloom, sunrays, shading };
+    setCustomMoods((list) => [...list, entry]);
+    setMood(id);
+    setNewMoodName('');
+  }
+
+  // Load a saved preset: restore both its values and its effect toggles.
+  function selectCustomMood(entry) {
+    setMood(entry.id);
+    setParams({ ...entry.params });
+    setBloom(entry.bloom);
+    setSunrays(entry.sunrays);
+    setShading(entry.shading);
+  }
+
+  function deleteCustomMood(id) {
+    setCustomMoods((list) => list.filter((m) => m.id !== id));
+    if (mood === id) setMood(null);
+  }
 
   // Audio mode: 'off' | 'mic' | 'file'
   const [audioMode, setAudioMode] = useState('off');
@@ -402,7 +478,15 @@ export default function App() {
 
   return (
     <div className="app">
-      <FluidBackground ref={fluidRef} color={color} brushSize={brushSize} mood={mood} />
+      <FluidBackground
+        ref={fluidRef}
+        color={color}
+        brushSize={brushSize}
+        params={params}
+        bloom={bloom}
+        sunrays={sunrays}
+        shading={shading}
+      />
 
       <header className="hero">
         <p className="eyebrow">interactive liquid</p>
@@ -486,13 +570,133 @@ export default function App() {
               <button
                 key={id}
                 className={`mood ${mood === id ? 'mood--active' : ''}`}
-                onClick={() => setMood(id)}
+                onClick={() => selectMood(id)}
                 title={`${MOODS[id].label} feel`}
               >
                 {MOODS[id].label}
               </button>
             ))}
           </div>
+        </div>
+
+        {customMoods.length > 0 && (
+          <div className="panel-row">
+            <span className="panel-label">My presets</span>
+            <div className="moods moods--wrap">
+              {customMoods.map((m) => (
+                <div
+                  key={m.id}
+                  className={`custom-mood ${mood === m.id ? 'custom-mood--active' : ''}`}
+                >
+                  <button
+                    className="custom-mood-select"
+                    onClick={() => selectCustomMood(m)}
+                    title={`Load "${m.label}"`}
+                  >
+                    {m.label}
+                  </button>
+                  <button
+                    className="custom-mood-del"
+                    onClick={() => deleteCustomMood(m.id)}
+                    title="Delete preset"
+                    aria-label={`Delete ${m.label}`}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="panel-row">
+          <button
+            className="advanced-toggle"
+            onClick={() => setAdvancedOpen((v) => !v)}
+            aria-expanded={advancedOpen}
+          >
+            <span className="panel-label">Advanced settings</span>
+            <span className="advanced-caret">{advancedOpen ? '−' : '+'}</span>
+          </button>
+
+          {advancedOpen && (
+            <div className="advanced">
+              {SLIDERS.map(({ key, label, min, max, step, decimals }) => (
+                <label key={key} className="slider-row">
+                  <span className="slider-head">
+                    <span className="slider-label">{label}</span>
+                    <span className="slider-value">
+                      {Number(params[key]).toFixed(decimals)}
+                    </span>
+                  </span>
+                  <input
+                    type="range"
+                    min={min}
+                    max={max}
+                    step={step}
+                    value={params[key]}
+                    onChange={(e) => updateParam(key, Number(e.target.value))}
+                  />
+                </label>
+              ))}
+
+              <span className="slider-label slider-label--section">Effects</span>
+              <div className="moods">
+                <button
+                  className={`mood ${bloom ? 'mood--active' : ''}`}
+                  onClick={() => setBloom((v) => !v)}
+                  title="Soft glow around bright areas"
+                >
+                  Bloom {bloom ? 'on' : 'off'}
+                </button>
+                <button
+                  className={`mood ${sunrays ? 'mood--active' : ''}`}
+                  onClick={() => setSunrays((v) => !v)}
+                  title="Light streaks from bright spots (causes the side squares)"
+                >
+                  Rays {sunrays ? 'on' : 'off'}
+                </button>
+                <button
+                  className={`mood ${shading ? 'mood--active' : ''}`}
+                  onClick={() => setShading((v) => !v)}
+                  title="Fake 3D lighting that gives the liquid depth"
+                >
+                  3D {shading ? 'on' : 'off'}
+                </button>
+              </div>
+
+              <span className="slider-label slider-label--section">
+                Save this look
+              </span>
+              <div className="save-preset">
+                <input
+                  type="text"
+                  className="save-preset-input"
+                  placeholder="Name this look…"
+                  value={newMoodName}
+                  maxLength={24}
+                  onChange={(e) => setNewMoodName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') saveCustomMood();
+                  }}
+                />
+                <button
+                  className="save-preset-btn"
+                  onClick={saveCustomMood}
+                  disabled={!newMoodName.trim()}
+                >
+                  Save
+                </button>
+              </div>
+
+              <button
+                className="advanced-reset"
+                onClick={() => selectMood('water')}
+              >
+                Reset to Water
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="panel-row">

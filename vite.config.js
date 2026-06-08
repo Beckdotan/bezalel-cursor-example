@@ -8,4 +8,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(({ command }) => ({
   base: command === 'build' ? '/bezalel-cursor-example/' : '/',
   plugins: [react()],
+  // Poll the filesystem for changes. Native file-watching events were not
+  // firing reliably in this environment, which made hot-reload miss edits;
+  // polling is a touch heavier but detects every change. (Dev-only.)
+  server: {
+    watch: { usePolling: true, interval: 300 },
+  },
 }))

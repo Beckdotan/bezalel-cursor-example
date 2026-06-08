@@ -18,13 +18,27 @@ export const BRUSH_RADII = {
 // give the liquid a different personality. All of these fields are read by the
 // engine every frame, so switching mood takes effect instantly.
 export const MOODS = {
+  // Water: the balanced default.
+  water: {
+    label: 'Water',
+    params: { CURL: 30, VELOCITY_DISSIPATION: 0.2, DENSITY_DISSIPATION: 1.6, PRESSURE: 0.8, BLOOM_INTENSITY: 0.7, SUNRAYS_WEIGHT: 1.0, SPLAT_FORCE: 6000 },
+  },
+  // Smoke: very swirly, almost frictionless (keeps drifting), slow color fade
+  // and extra glow -> ethereal, wispy, never settles.
   smoke: {
     label: 'Smoke',
-    params: { CURL: 45, VELOCITY_DISSIPATION: 0.05, DENSITY_DISSIPATION: 0.7, PRESSURE: 0.8, BLOOM_INTENSITY: 0.6, SUNRAYS_WEIGHT: 1.0, SPLAT_FORCE: 6000 },
+    params: { CURL: 60, VELOCITY_DISSIPATION: 0.02, DENSITY_DISSIPATION: 0.4, PRESSURE: 0.6, BLOOM_INTENSITY: 0.9, SUNRAYS_WEIGHT: 1.4, SPLAT_FORCE: 4800 },
   },
+  // Paint: almost no swirl, very high friction (motion stops instantly), rich
+  // long-lasting color and a matte look -> thick blobs that smear and stay put.
   paint: {
     label: 'Paint',
-    params: { CURL: 12, VELOCITY_DISSIPATION: 1.4, DENSITY_DISSIPATION: 0.6, PRESSURE: 1.0, BLOOM_INTENSITY: 0.5, SUNRAYS_WEIGHT: 0.6, SPLAT_FORCE: 7000 },
+    params: { CURL: 1, VELOCITY_DISSIPATION: 3.5, DENSITY_DISSIPATION: 0.35, PRESSURE: 1.0, BLOOM_INTENSITY: 0.2, SUNRAYS_WEIGHT: 0.3, SPLAT_FORCE: 9500 },
+  },
+  // Neon: energetic with bright bloom + rays for a luminous, glowing look.
+  neon: {
+    label: 'Neon',
+    params: { CURL: 35, VELOCITY_DISSIPATION: 0.15, DENSITY_DISSIPATION: 1.2, PRESSURE: 0.8, BLOOM_INTENSITY: 1.5, SUNRAYS_WEIGHT: 1.7, SPLAT_FORCE: 6500 },
   },
 };
 
@@ -37,8 +51,18 @@ export function hexToFluidColor(hex) {
   return { r: r * COLOR_SCALE, g: g * COLOR_SCALE, b: b * COLOR_SCALE };
 }
 
+// The default starting parameters (same as the Water mood).
+export const DEFAULT_PARAMS = MOODS.water.params;
+
 const FluidBackground = forwardRef(function FluidBackground(
-  { color, brushSize = 3, mood = 'water' },
+  {
+    color,
+    brushSize = 3,
+    params = DEFAULT_PARAMS,
+    bloom = true,
+    sunrays = false,
+    shading = true,
+  },
   ref,
 ) {
   const canvasRef = useRef(null);
@@ -51,7 +75,7 @@ const FluidBackground = forwardRef(function FluidBackground(
     addSplat: (x, y, dx, dy, opts) =>
       controllerRef.current?.addSplat(x, y, dx, dy, opts),
     setBackColor: (rgb) => controllerRef.current?.setBackColor(rgb),
-    setParams: (params) => controllerRef.current?.setParams(params),
+    setParams: (p) => controllerRef.current?.setParams(p),
   }));
 
   // Start the simulation once, when the canvas mounts.
@@ -59,19 +83,29 @@ const FluidBackground = forwardRef(function FluidBackground(
     const controller = initFluidSimulation(canvasRef.current, {
       SPLAT_COLOR: color ? hexToFluidColor(color) : null,
       SPLAT_RADIUS: BRUSH_RADII[brushSize] ?? BRUSH_RADII[3],
-      ...(MOODS[mood]?.params ?? {}),
+      BLOOM: bloom,
+      SUNRAYS: sunrays,
+      SHADING: shading,
+      ...params,
     });
     controllerRef.current = controller;
     return () => controller.destroy();
   }, []);
 
-  // Apply the selected mood (a bundle of simulation values) whenever it changes.
+  // Apply the live-tunable parameters (from moods or the advanced sliders)
+  // whenever they change. These are read by the engine every frame.
   useEffect(() => {
-    const params = MOODS[mood]?.params;
-    if (controllerRef.current && params) {
-      controllerRef.current.setParams(params);
-    }
-  }, [mood]);
+    controllerRef.current?.setParams(params);
+  }, [params]);
+
+  // Toggle the post-processing effects (recompiles the display shader).
+  useEffect(() => {
+    controllerRef.current?.setEffects({
+      BLOOM: bloom,
+      SUNRAYS: sunrays,
+      SHADING: shading,
+    });
+  }, [bloom, sunrays, shading]);
 
   // Whenever the chosen color changes, update the running simulation live.
   useEffect(() => {

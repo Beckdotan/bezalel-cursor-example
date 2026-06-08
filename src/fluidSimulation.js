@@ -1417,6 +1417,13 @@ export default function initFluidSimulation(canvas, options = {}) {
     setParams(params) {
       Object.assign(config, params);
     },
+    // Toggle the post-processing effects (BLOOM, SUNRAYS, SHADING). Unlike the
+    // numeric params above, these change which display shader is used, so we
+    // recompile the display material via updateKeywords().
+    setEffects(effects) {
+      Object.assign(config, effects);
+      updateKeywords();
+    },
     // Inject a single splat. x,y are 0..1 (y measured from the BOTTOM, like the
     // simulation's own coords). dx,dy are the push direction/force. Options let
     // an external driver (e.g. audio) control brightness, size and hue.
