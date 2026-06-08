@@ -30,7 +30,9 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        # `npm install` (not `npm ci`) so the build is resilient to lockfile
+        # differences in platform-specific optional native packages.
+        run: npm install --no-audit --no-fund
 
       - name: Build
         run: npm run build
