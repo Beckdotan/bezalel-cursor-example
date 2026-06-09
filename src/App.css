@@ -18,12 +18,81 @@
 }
 
 /* Hero text floats on top but lets the pointer pass through to the water. */
+/* The particle field also fills the screen behind everything. */
+.particle-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 0;
+  touch-action: none;
+}
+
+/* Top tab bar to switch between the Liquid and Particles experiences. */
+.tabs {
+  position: fixed;
+  top: clamp(16px, 3vw, 28px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(20, 24, 34, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.tab {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tab:hover {
+  color: #fff;
+}
+
+.tab--active {
+  background: linear-gradient(120deg, #58e7ff, #b388ff);
+  color: #04060a;
+}
+
 .hero {
   position: relative;
   z-index: 1;
   pointer-events: none;
   max-width: 720px;
   padding: clamp(28px, 6vw, 80px);
+}
+
+/* Light theme (Particles tab): make the page text dark so it reads on the
+   near-white background. */
+.app--light .eyebrow {
+  color: rgba(18, 21, 27, 0.5);
+}
+
+.app--light .hero h1 {
+  color: #14161b;
+  text-shadow: none;
+}
+
+.app--light .hero-sub {
+  color: rgba(18, 21, 27, 0.68);
+  text-shadow: none;
+}
+
+.app--light .hint {
+  color: rgba(18, 21, 27, 0.5);
 }
 
 .eyebrow {

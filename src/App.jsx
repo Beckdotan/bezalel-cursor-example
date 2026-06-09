@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import FluidBackground, { MOODS, DEFAULT_PARAMS } from './FluidBackground';
+import ParticleField, { PALETTES } from './ParticleField';
 import { createAudioEngine } from './audioEngine';
 import { createHandTracker } from './handTracker';
 import './App.css';
+
+const PALETTE_LIST = ['rainbow', 'sunset', 'ocean', 'candy'];
 
 // Order the mood buttons appear in the panel.
 const MOOD_LIST = ['water', 'smoke', 'paint', 'neon'];
@@ -82,8 +85,20 @@ function hsvToRgb01(h, s, v) {
 
 export default function App() {
   // `color` is either a hex string or null (rainbow mode).
+  // Which experience is showing: the fluid 'liquid' or the 'particles' field.
+  const [view, setView] = useState('liquid');
+
   const [color, setColor] = useState('#19e3ff');
   const [brushSize, setBrushSize] = useState(3);
+
+  // Particles-tab settings.
+  const [pPalette, setPPalette] = useState('rainbow');
+  const [pCount, setPCount] = useState(220);
+  const [pSpeed, setPSpeed] = useState(1);
+  const [pGlow, setPGlow] = useState(1);
+  const [pCameraOn, setPCameraOn] = useState(false);
+  const [pCameraLoading, setPCameraLoading] = useState(false);
+  const [pCameraError, setPCameraError] = useState(null);
   // `mood` is just which preset button is highlighted (null = custom, after the
   // user moves a slider). `params` are the actual values driving the fluid.
   const [mood, setMood] = useState('water');
@@ -166,6 +181,11 @@ export default function App() {
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
   const overlayRef = useRef(null);
+
+  // Particles tab refs.
+  const particleRef = useRef(null);
+  const pVideoRef = useRef(null);
+  const pOverlayRef = useRef(null);
 
   // Create the audio engine once.
   const audioEngineRef = useRef(null);
@@ -476,29 +496,117 @@ export default function App() {
     overlay?.getContext('2d')?.clearRect(0, 0, overlay.width, overlay.height);
   }
 
-  return (
-    <div className="app">
-      <FluidBackground
-        ref={fluidRef}
-        color={color}
-        brushSize={brushSize}
-        params={params}
-        bloom={bloom}
-        sunrays={sunrays}
-        shading={shading}
-      />
+  // --- Particles tab: camera pushes particles around with your hand ---
+  useEffect(() => {
+    if (!pCameraOn) return undefined;
+    const tracker = handTrackerRef.current;
 
-      <header className="hero">
-        <p className="eyebrow">interactive liquid</p>
-        <h1>
-          Touch the <span className="hero-accent">water</span>.
-        </h1>
-        <p className="hero-sub">
-          Move your cursor to trail through the surface, let it dance to your
-          voice or a song, or steer it with your hand on camera. Click anywhere
-          to drop a bomb.
-        </p>
-      </header>
+    const unsubscribe = tracker.subscribe(({ hands }) => {
+      const field = particleRef.current;
+      const overlay = pOverlayRef.current;
+      const ctx = overlay?.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+      // Mirror x (mirror feel). Particles use a top-left origin like the image,
+      // so y is NOT flipped here.
+      const points = hands.map((h) => ({ x: 1 - h.x, y: h.y }));
+      field?.setHandPoints(points);
+
+      if (ctx) {
+        hands.forEach((h) => {
+          const px = (1 - h.x) * overlay.width;
+          const py = h.y * overlay.height;
+          ctx.beginPath();
+          ctx.arc(px, py, 7, 0, Math.PI * 2);
+          ctx.fillStyle = '#3b82f6';
+          ctx.fill();
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      particleRef.current?.setHandPoints([]);
+    };
+  }, [pCameraOn]);
+
+  async function enablePCamera() {
+    setPCameraError(null);
+    setPCameraLoading(true);
+    try {
+      await handTrackerRef.current.start(pVideoRef.current);
+      setPCameraOn(true);
+    } catch (err) {
+      const denied = err?.name === 'NotAllowedError';
+      setPCameraError(
+        denied
+          ? 'Camera access was blocked. Allow the camera in your browser, then try again.'
+          : 'Could not start hand tracking. Check your connection and that a camera is available.',
+      );
+      setPCameraOn(false);
+    } finally {
+      setPCameraLoading(false);
+    }
+  }
+
+  function disablePCamera() {
+    handTrackerRef.current.stop();
+    setPCameraOn(false);
+    setPCameraError(null);
+    particleRef.current?.setHandPoints([]);
+    const overlay = pOverlayRef.current;
+    overlay?.getContext('2d')?.clearRect(0, 0, overlay.width, overlay.height);
+  }
+
+  // Switch tabs, stopping any input engines so they don't bleed across views.
+  function switchView(next) {
+    if (next === view) return;
+    if (cameraOn) disableCamera();
+    if (pCameraOn) disablePCamera();
+    if (audioMode !== 'off') disableAudio();
+    setView(next);
+  }
+
+  return (
+    <div className={`app ${view === 'particles' ? 'app--light' : ''}`}>
+      <nav className="tabs">
+        <button
+          className={`tab ${view === 'liquid' ? 'tab--active' : ''}`}
+          onClick={() => switchView('liquid')}
+        >
+          Liquid
+        </button>
+        <button
+          className={`tab ${view === 'particles' ? 'tab--active' : ''}`}
+          onClick={() => switchView('particles')}
+        >
+          Particles
+        </button>
+      </nav>
+
+      {view === 'liquid' && (
+        <>
+          <FluidBackground
+            ref={fluidRef}
+            color={color}
+            brushSize={brushSize}
+            params={params}
+            bloom={bloom}
+            sunrays={sunrays}
+            shading={shading}
+          />
+
+          <header className="hero">
+            <p className="eyebrow">interactive liquid</p>
+            <h1>
+              Touch the <span className="hero-accent">water</span>.
+            </h1>
+            <p className="hero-sub">
+              Move your cursor to trail through the surface, let it dance to your
+              voice or a song, or steer it with your hand on camera. Click
+              anywhere to drop a bomb.
+            </p>
+          </header>
 
       <button
         className="panel-toggle"
@@ -811,8 +919,151 @@ export default function App() {
           Keyboard: <b>1–5</b> size · <b>R G B O P K</b> colors
         </p>
       </section>
+        </>
+      )}
 
-      <footer className="hint">click · drag · speak · play a song · wave your hand</footer>
+      {view === 'particles' && (
+        <>
+          <ParticleField
+            ref={particleRef}
+            count={pCount}
+            speed={pSpeed}
+            glow={pGlow}
+            palette={pPalette}
+            background="light"
+          />
+
+          <header className="hero hero--dark">
+            <p className="eyebrow">interactive particles</p>
+            <h1>
+              Drift through <span className="hero-accent">light</span>.
+            </h1>
+            <p className="hero-sub hero-sub--dark">
+              Move your cursor to part the particles, click to burst a splash of
+              color, or push them around with your hand on camera.
+            </p>
+          </header>
+
+          <button
+            className="panel-toggle"
+            onClick={() => setPanelOpen((v) => !v)}
+            aria-expanded={panelOpen}
+          >
+            {panelOpen ? 'Hide controls' : 'Show controls'}
+          </button>
+
+          <section
+            className={`panel ${panelOpen ? 'panel--open' : 'panel--closed'}`}
+          >
+            <div className="panel-row">
+              <span className="panel-label">Palette</span>
+              <div className="moods moods--wrap">
+                {PALETTE_LIST.map((id) => (
+                  <button
+                    key={id}
+                    className={`mood ${pPalette === id ? 'mood--active' : ''}`}
+                    onClick={() => setPPalette(id)}
+                  >
+                    {PALETTES[id].label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="panel-row">
+              <div className="advanced">
+                <label className="slider-row">
+                  <span className="slider-head">
+                    <span className="slider-label">Density</span>
+                    <span className="slider-value">{pCount}</span>
+                  </span>
+                  <input
+                    type="range"
+                    min={50}
+                    max={500}
+                    step={10}
+                    value={pCount}
+                    onChange={(e) => setPCount(Number(e.target.value))}
+                  />
+                </label>
+                <label className="slider-row">
+                  <span className="slider-head">
+                    <span className="slider-label">Drift speed</span>
+                    <span className="slider-value">{pSpeed.toFixed(2)}</span>
+                  </span>
+                  <input
+                    type="range"
+                    min={0.2}
+                    max={3}
+                    step={0.05}
+                    value={pSpeed}
+                    onChange={(e) => setPSpeed(Number(e.target.value))}
+                  />
+                </label>
+                <label className="slider-row">
+                  <span className="slider-head">
+                    <span className="slider-label">Glow</span>
+                    <span className="slider-value">{pGlow.toFixed(2)}</span>
+                  </span>
+                  <input
+                    type="range"
+                    min={0.3}
+                    max={2}
+                    step={0.05}
+                    value={pGlow}
+                    onChange={(e) => setPGlow(Number(e.target.value))}
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="panel-row">
+              <span className="panel-label">Camera control</span>
+              <div className="audio-modes">
+                <button
+                  className={`audio-mode ${!pCameraOn ? 'audio-mode--active' : ''}`}
+                  onClick={disablePCamera}
+                >
+                  Off
+                </button>
+                <button
+                  className={`audio-mode ${pCameraOn ? 'audio-mode--active' : ''}`}
+                  onClick={enablePCamera}
+                  disabled={pCameraLoading}
+                >
+                  {pCameraLoading ? 'Starting…' : 'Hand tracking'}
+                </button>
+              </div>
+
+              <div
+                className={`camera-preview ${pCameraOn ? '' : 'camera-preview--hidden'}`}
+              >
+                <video ref={pVideoRef} className="camera-video" playsInline muted />
+                <canvas
+                  ref={pOverlayRef}
+                  className="camera-overlay"
+                  width={160}
+                  height={120}
+                />
+              </div>
+
+              {pCameraOn && (
+                <p className="audio-status">
+                  Move your hand to push the particles around.
+                </p>
+              )}
+
+              {pCameraError && <p className="audio-error">{pCameraError}</p>}
+            </div>
+          </section>
+        </>
+      )}
+
+      <footer className="hint">
+        {view === 'liquid'
+          ? 'click · drag · speak · play a song · wave your hand'
+          : 'move · click to burst · wave your hand'}
+      </footer>
     </div>
   );
 }
