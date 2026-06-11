@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import FluidBackground, { MOODS, DEFAULT_PARAMS } from './FluidBackground';
 import ParticleField, { PALETTES } from './ParticleField';
+import PaperArtHero from './PaperArtHero';
 import { createAudioEngine } from './audioEngine';
 import { createHandTracker } from './handTracker';
 import './App.css';
@@ -84,6 +85,11 @@ function hsvToRgb01(h, s, v) {
 }
 
 export default function App() {
+  // Top-level mode: 'studio' is everything we built (Liquid + Particles), and
+  // 'paper' is the scroll-driven paper-art hero section. Paper Art is the
+  // default landing experience.
+  const [mode, setMode] = useState('paper');
+
   // `color` is either a hex string or null (rainbow mode).
   // Which experience is showing: the fluid 'liquid' or the 'particles' field.
   const [view, setView] = useState('liquid');
@@ -567,7 +573,36 @@ export default function App() {
     setView(next);
   }
 
+  // Switch top-level mode. Leaving the studio stops any live camera/audio so
+  // nothing keeps running behind the paper-art hero.
+  function switchMode(next) {
+    if (next === mode) return;
+    if (cameraOn) disableCamera();
+    if (pCameraOn) disablePCamera();
+    if (audioMode !== 'off') disableAudio();
+    setMode(next);
+  }
+
   return (
+    <>
+      <nav className="mode-switch">
+        <button
+          className={`mode-pill ${mode === 'studio' ? 'mode-pill--active' : ''}`}
+          onClick={() => switchMode('studio')}
+        >
+          Studio
+        </button>
+        <button
+          className={`mode-pill ${mode === 'paper' ? 'mode-pill--active' : ''}`}
+          onClick={() => switchMode('paper')}
+        >
+          Paper Art
+        </button>
+      </nav>
+
+      {mode === 'paper' && <PaperArtHero />}
+
+      {mode === 'studio' && (
     <div className={`app ${view === 'particles' ? 'app--light' : ''}`}>
       <nav className="tabs">
         <button
@@ -1065,5 +1100,7 @@ export default function App() {
           : 'move · click to burst · wave your hand'}
       </footer>
     </div>
+      )}
+    </>
   );
 }

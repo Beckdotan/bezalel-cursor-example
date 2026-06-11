@@ -29,6 +29,44 @@
   touch-action: none;
 }
 
+/* Top-level mode switch (Studio vs Paper Art). Floats top-left, above both
+   modes, so it's always reachable. */
+.mode-switch {
+  position: fixed;
+  top: clamp(16px, 3vw, 28px);
+  left: clamp(16px, 3vw, 28px);
+  z-index: 20;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(20, 24, 34, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.mode-pill {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.mode-pill:hover {
+  color: #fff;
+}
+
+.mode-pill--active {
+  background: linear-gradient(120deg, #e8c39e, #fdfbf7);
+  color: #14161b;
+}
+
 /* Top tab bar to switch between the Liquid and Particles experiences. */
 .tabs {
   position: fixed;
