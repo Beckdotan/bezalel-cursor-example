@@ -37,6 +37,12 @@ const SCENES = [
   },
 ];
 
+// Video lives in /public. On GitHub Pages the site is served from a subpath
+// (e.g. /bezalel-cursor-example/), so we prefix with Vite's BASE_URL instead of
+// a hardcoded "/" — otherwise the file 404s in production. BASE_URL already
+// ends in "/", so we don't add another.
+const VIDEO_SRC = `${import.meta.env.BASE_URL}origami-portrait.mp4`;
+
 // How quickly the video position chases the scroll position. Lower = smoother
 // but laggier; higher = snappier but can look jittery. 0.2 keeps a little
 // filmic glide while still catching up quickly on a fast scroll.
@@ -106,7 +112,7 @@ export default function PaperArtHero() {
 
     async function preload() {
       try {
-        const res = await fetch('/origami-portrait.mp4');
+        const res = await fetch(VIDEO_SRC);
         const total = Number(res.headers.get('Content-Length')) || 0;
         if (!total) setHasTotal(false);
 
@@ -139,7 +145,7 @@ export default function PaperArtHero() {
         // the <video> load normally so the experience still works.
         if (cancelled) return;
         setHasTotal(false);
-        video.src = '/origami-portrait.mp4';
+        video.src = VIDEO_SRC;
         if (video.readyState >= 3) onReady();
         else video.addEventListener('canplay', onReady, { once: true });
       }
