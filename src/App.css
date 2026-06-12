@@ -67,6 +67,19 @@
   color: #14161b;
 }
 
+/* Hero Section variant tabs sit above the hero's loading screen (z-index 10)
+   so you can switch versions even while one is loading. */
+.hero-tabs {
+  z-index: 20;
+}
+
+/* Match the active variant tab to the warm hero palette instead of the
+   Studio's cyan/purple. */
+.hero-tabs .tab--active {
+  background: linear-gradient(120deg, #e8c39e, #fdfbf7);
+  color: #14161b;
+}
+
 /* Top tab bar to switch between the Liquid and Particles experiences. */
 .tabs {
   position: fixed;

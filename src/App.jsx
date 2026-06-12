@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import FluidBackground, { MOODS, DEFAULT_PARAMS } from './FluidBackground';
 import ParticleField, { PALETTES } from './ParticleField';
-import PaperArtHero from './PaperArtHero';
+import ScrollHero from './ScrollHero';
 import { createAudioEngine } from './audioEngine';
 import { createHandTracker } from './handTracker';
 import './App.css';
@@ -65,6 +65,89 @@ const HAND_FORCE = 6000;
 // moves).
 const HAND_MOVE_THRESHOLD = 0.0025;
 
+// The two Hero Section variants. Each is a self-contained config handed to the
+// reusable <ScrollHero> component: which video to scrub, whether it plays
+// forward or in reverse, the scroll hint, and the headline "scenes" (each tied
+// to a 0..1 slice of the scroll timeline). To tweak copy, edit `scenes` here.
+const HERO_VARIANTS = {
+  paper: {
+    label: 'Paper Art',
+    videoFile: 'origami-portrait.mp4',
+    reverse: true, // opens on the folded sculpture, rewinds to the portrait
+    hint: 'Scroll to unfold',
+    scenes: [
+      {
+        start: 0.0,
+        end: 0.24,
+        eyebrow: 'Paper art studio',
+        title: 'FOLD',
+        sub: 'Sculpture from a single sheet.',
+      },
+      {
+        start: 0.2,
+        end: 0.46,
+        eyebrow: 'The craft',
+        title: 'Every crease\ntells a story.',
+        sub: 'Hand-folded, never cut. One continuous gesture of paper.',
+      },
+      {
+        start: 0.42,
+        end: 0.68,
+        eyebrow: 'The form',
+        title: 'A portrait,\nunfolding.',
+        sub: 'Flat geometry becomes a living, three-dimensional face.',
+      },
+      {
+        start: 0.66,
+        end: 1.0,
+        eyebrow: 'Commission',
+        title: 'Made for\nyour space.',
+        sub: 'Bespoke paper sculptures for homes, brands and galleries.',
+        cta: 'Start a commission',
+      },
+    ],
+  },
+  construction: {
+    label: 'City Renewal',
+    videoFile: 'city-renewal.mp4',
+    reverse: false, // plays forward: neglected site -> finished living space
+    hint: 'Scroll to rebuild',
+    scenes: [
+      {
+        start: 0.0,
+        end: 0.24,
+        eyebrow: 'Urban renewal',
+        title: 'RENEW',
+        sub: 'We see homes where the city sees waste.',
+      },
+      {
+        start: 0.2,
+        end: 0.46,
+        eyebrow: 'The site',
+        title: 'From the\nforgotten.',
+        sub: 'Vacant lots and derelict corners, hiding in plain sight.',
+      },
+      {
+        start: 0.42,
+        end: 0.68,
+        eyebrow: 'The build',
+        title: 'Rebuilt from\nthe ground up.',
+        sub: 'Foundations, structure and life — rising in time-lapse.',
+      },
+      {
+        start: 0.66,
+        end: 1.0,
+        eyebrow: 'The result',
+        title: 'Places to\ncall home.',
+        sub: 'Vibrant living spaces, reclaimed for the people of the city.',
+        cta: 'Explore our projects',
+      },
+    ],
+  },
+};
+
+const HERO_VARIANT_LIST = ['paper', 'construction'];
+
 // Tiny HSV->RGB (0..1) helper for the background mood tint.
 function hsvToRgb01(h, s, v) {
   const i = Math.floor(h * 6);
@@ -86,9 +169,11 @@ function hsvToRgb01(h, s, v) {
 
 export default function App() {
   // Top-level mode: 'studio' is everything we built (Liquid + Particles), and
-  // 'paper' is the scroll-driven paper-art hero section. Paper Art is the
+  // 'hero' is the scroll-driven Hero Sections experience. Hero Sections is the
   // default landing experience.
-  const [mode, setMode] = useState('paper');
+  const [mode, setMode] = useState('hero');
+  // Which Hero Section variant is showing ('paper' | 'construction').
+  const [heroVariant, setHeroVariant] = useState('paper');
 
   // `color` is either a hex string or null (rainbow mode).
   // Which experience is showing: the fluid 'liquid' or the 'particles' field.
@@ -593,14 +678,33 @@ export default function App() {
           Studio
         </button>
         <button
-          className={`mode-pill ${mode === 'paper' ? 'mode-pill--active' : ''}`}
-          onClick={() => switchMode('paper')}
+          className={`mode-pill ${mode === 'hero' ? 'mode-pill--active' : ''}`}
+          onClick={() => switchMode('hero')}
         >
-          Paper Art
+          Hero Sections
         </button>
       </nav>
 
-      {mode === 'paper' && <PaperArtHero />}
+      {mode === 'hero' && (
+        <>
+          {/* Sub-switcher: pick which Hero Section variant to view. */}
+          <nav className="tabs hero-tabs">
+            {HERO_VARIANT_LIST.map((id) => (
+              <button
+                key={id}
+                className={`tab ${heroVariant === id ? 'tab--active' : ''}`}
+                onClick={() => setHeroVariant(id)}
+              >
+                {HERO_VARIANTS[id].label}
+              </button>
+            ))}
+          </nav>
+
+          {/* `key` forces a fresh mount when switching variants, so the new
+              video reloads from its loading screen and scroll resets. */}
+          <ScrollHero key={heroVariant} {...HERO_VARIANTS[heroVariant]} />
+        </>
+      )}
 
       {mode === 'studio' && (
     <div className={`app ${view === 'particles' ? 'app--light' : ''}`}>

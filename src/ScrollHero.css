@@ -1,0 +1,269 @@
+/* ScrollHero ----------------------------------------------------------------
+   Styles for the reusable scroll-driven hero (used by every Hero Section
+   variant). The whole experience lives inside one scrolling container so it
+   never fights the app's global `body { overflow: hidden }` rule.
+   NOTE: class names keep the `paper__` prefix for historical reasons; they are
+   generic and used by all variants, not just the paper-art one. */
+.paper {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  background: #0c0a08;
+  scroll-behavior: auto;
+}
+
+/* While the loading screen is up, freeze scrolling so the hidden hero can't be
+   nudged around behind it. */
+.paper--locked {
+  overflow: hidden;
+}
+
+/* The pinned stage stays put (sticky to the top) while the tall track scrolls
+   underneath it. Everything the viewer sees lives in here. */
+.paper__stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.paper__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Slight grade so bright footage feels gallery-lit, not clinical. */
+  filter: saturate(0.92) contrast(1.04);
+}
+
+/* A gradient scrim darkens the left/bottom so the text always stays readable
+   over the footage. */
+.paper__scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      100deg,
+      rgba(8, 7, 6, 0.78) 0%,
+      rgba(8, 7, 6, 0.4) 38%,
+      rgba(8, 7, 6, 0) 64%
+    ),
+    linear-gradient(to top, rgba(8, 7, 6, 0.6) 0%, rgba(8, 7, 6, 0) 40%);
+}
+
+/* Each text scene is stacked in the same spot and revealed via opacity. */
+.paper__scene {
+  position: absolute;
+  left: clamp(28px, 7vw, 110px);
+  bottom: clamp(96px, 16vh, 180px);
+  max-width: min(620px, 80vw);
+  transition: opacity 0.25s ease;
+  will-change: opacity;
+}
+
+.paper__eyebrow {
+  margin: 0 0 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.42em;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.paper__title {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: clamp(48px, 8.5vw, 116px);
+  line-height: 0.96;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  color: #fdfbf7;
+  text-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+}
+
+.paper__title-line {
+  display: block;
+}
+
+.paper__sub {
+  margin: 26px 0 0;
+  max-width: 440px;
+  font-size: clamp(15px, 2vw, 19px);
+  line-height: 1.55;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.78);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
+}
+
+.paper__cta {
+  margin-top: 30px;
+  padding: 14px 30px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  background: rgba(253, 251, 247, 0.06);
+  color: #fdfbf7;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.paper__cta:hover {
+  background: #fdfbf7;
+  color: #0c0a08;
+  transform: translateY(-2px);
+}
+
+/* Thin timeline scrubber across the bottom of the screen. */
+.paper__progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.paper__progress-fill {
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, #e8c39e, #fdfbf7);
+}
+
+/* Scroll hint, centred at the bottom. */
+.paper__hint {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(28px, 5vh, 48px);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.paper__hint-arrow {
+  font-size: 18px;
+  animation: paper-bounce 1.6s ease-in-out infinite;
+}
+
+@keyframes paper-bounce {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50% { transform: translateY(6px); opacity: 1; }
+}
+
+/* Loading screen ------------------------------------------------------------
+   Sits above the whole experience until the video has fully downloaded. */
+.paper-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  background: radial-gradient(120% 120% at 50% 40%, #181410 0%, #0c0a08 70%);
+  /* `perspective` gives the folding sheet a real sense of depth. */
+  perspective: 700px;
+  transition: opacity 0.7s ease;
+}
+
+/* When loading finishes we fade out and stop intercepting clicks/scroll. */
+.paper-loader--done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The animated "sheet" that folds over and over. The diagonal two-tone fill
+   reads as a crease catching the light as it turns. */
+.paper-loader__fold {
+  width: 68px;
+  height: 68px;
+  background: linear-gradient(
+    135deg,
+    #fdfbf7 0%,
+    #f3ead9 49%,
+    #d9c4a8 51%,
+    #b89d7c 100%
+  );
+  border-radius: 2px;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45);
+  transform-style: preserve-3d;
+  animation: paper-fold 2.1s cubic-bezier(0.62, 0.04, 0.34, 0.97) infinite;
+}
+
+@keyframes paper-fold {
+  0% { transform: rotateX(0deg) rotateY(0deg); }
+  35% { transform: rotateX(180deg) rotateY(0deg); }
+  70% { transform: rotateX(180deg) rotateY(180deg); }
+  100% { transform: rotateX(360deg) rotateY(180deg); }
+}
+
+.paper-loader__label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: rgba(253, 251, 247, 0.78);
+}
+
+.paper-loader__bar {
+  width: min(240px, 60vw);
+  height: 2px;
+  background: rgba(253, 251, 247, 0.14);
+  overflow: hidden;
+}
+
+.paper-loader__bar-fill {
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  transform: scaleX(0);
+  background: linear-gradient(90deg, #e8c39e, #fdfbf7);
+  transition: transform 0.25s ease;
+}
+
+/* When the file size is unknown we can't show a real %, so the bar sweeps
+   back and forth instead. */
+.paper-loader__bar-fill--indeterminate {
+  width: 40%;
+  transform: none;
+  transition: none;
+  animation: paper-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes paper-sweep {
+  0% { margin-left: -40%; }
+  100% { margin-left: 100%; }
+}
+
+.paper-loader__pct {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: rgba(253, 251, 247, 0.55);
+  font-variant-numeric: tabular-nums;
+}
+
+/* This invisible block is what creates the scroll distance. ~6 viewport
+   heights of scrolling are mapped across the full video timeline. */
+.paper__track {
+  height: 600vh;
+}

@@ -4,7 +4,8 @@ This documents how the scroll-driven hero clip used in **Paper Art** mode was
 generated, so it can be reproduced or tweaked later.
 
 - **Final asset:** `public/origami-portrait.mp4`
-- **Used by:** `src/PaperArtHero.jsx` (scrubbed by scroll position)
+- **Used by:** `src/ScrollHero.jsx` via the `paper` variant in `src/App.jsx`
+  (scrubbed by scroll position)
 - **Image generation tool:** Nano Banana 2
 - **Video generation tool:** LTX 2.3 Pro
 - **Frame rate:** 25 fps
@@ -79,6 +80,6 @@ no text, no watermark, slow motion, effects,
      -pix_fmt yuv420p -movflags +faststart public/origami-portrait.mp4
    ```
 
-4. If the new clip should play forward instead of reversed, flip the mapping in
-   `src/PaperArtHero.jsx` (`targetTimeRef.current = p * duration` instead of
-   `(1 - p) * duration`).
+4. Each Hero Section variant is configured in `HERO_VARIANTS` in
+   `src/App.jsx` — set its `videoFile`, `reverse` (forward vs reversed
+   playback), `hint`, and `scenes` (the headline copy) there.
