@@ -215,6 +215,78 @@
   100% { transform: rotateX(360deg) rotateY(180deg); }
 }
 
+/* Construction loader: a row of "buildings" that rise from the ground in a
+   staggered loop, like a skyline going up on a construction site. */
+.cr-loader {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 72px;
+}
+
+.cr-loader__bar {
+  width: 13px;
+  border-radius: 2px 2px 0 0;
+  transform-origin: bottom center;
+  background: linear-gradient(to top, #b89d7c, #fdfbf7);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.4);
+  animation: cr-rise 1.8s cubic-bezier(0.6, 0.04, 0.32, 1) infinite;
+}
+
+/* Different heights + staggered starts give a real skyline silhouette. */
+.cr-loader__bar:nth-child(1) { height: 46px; animation-delay: 0s; }
+.cr-loader__bar:nth-child(2) { height: 66px; animation-delay: 0.18s; }
+.cr-loader__bar:nth-child(3) { height: 38px; animation-delay: 0.36s; }
+.cr-loader__bar:nth-child(4) { height: 58px; animation-delay: 0.54s; }
+
+@keyframes cr-rise {
+  0% { transform: scaleY(0.06); opacity: 0.5; }
+  45% { transform: scaleY(1); opacity: 1; }
+  80% { transform: scaleY(1); opacity: 1; }
+  100% { transform: scaleY(0.06); opacity: 0.5; }
+}
+
+/* Shell / voice loader: rings ripple outward from a glowing core — a sense of
+   emerging from the shell and a voice carrying across a room. */
+.shell-loader {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  display: grid;
+  place-items: center;
+}
+
+.shell-loader__ring {
+  position: absolute;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  border: 2px solid rgba(253, 251, 247, 0.85);
+  animation: shell-ripple 2.1s ease-out infinite;
+}
+
+.shell-loader__ring:nth-child(2) { animation-delay: 0.7s; }
+.shell-loader__ring:nth-child(3) { animation-delay: 1.4s; }
+
+.shell-loader__core {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fdfbf7, #e8c39e);
+  box-shadow: 0 0 22px rgba(232, 195, 158, 0.8);
+  animation: shell-pulse 2.1s ease-in-out infinite;
+}
+
+@keyframes shell-ripple {
+  0% { transform: scale(0.2); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+@keyframes shell-pulse {
+  0%, 100% { transform: scale(0.85); opacity: 0.85; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
+
 .paper-loader__label {
   margin: 0;
   font-size: 12px;

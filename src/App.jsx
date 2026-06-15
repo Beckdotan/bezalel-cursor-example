@@ -112,6 +112,8 @@ const HERO_VARIANTS = {
     videoFile: 'city-renewal.mp4',
     reverse: false, // plays forward: neglected site -> finished living space
     hint: 'Scroll to rebuild',
+    loader: 'construction',
+    loaderLabel: 'Breaking ground',
     scenes: [
       {
         start: 0.0,
@@ -144,9 +146,48 @@ const HERO_VARIANTS = {
       },
     ],
   },
+  coach: {
+    label: 'Personal Coach',
+    videoFile: 'out-of-shell.mp4',
+    reverse: false, // plays forward: curled in a shell -> speaking out loud
+    hint: 'Scroll to emerge',
+    loader: 'shell',
+    loaderLabel: 'Finding your voice',
+    scenes: [
+      {
+        start: 0.0,
+        end: 0.24,
+        eyebrow: 'Personal coaching',
+        title: 'EMERGE',
+        sub: 'Step out of your shell — and into the room.',
+      },
+      {
+        start: 0.2,
+        end: 0.46,
+        eyebrow: 'The comfort zone',
+        title: 'It starts\ninside.',
+        sub: 'Where it feels safe, small, and easy to stay unseen.',
+      },
+      {
+        start: 0.42,
+        end: 0.68,
+        eyebrow: 'The breakthrough',
+        title: 'Break\nthrough.',
+        sub: 'One coached step at a time, you find your edge.',
+      },
+      {
+        start: 0.66,
+        end: 1.0,
+        eyebrow: 'The stage',
+        title: 'Speak with\nconfidence.',
+        sub: 'From hiding away to holding the room.',
+        cta: 'Book a session',
+      },
+    ],
+  },
 };
 
-const HERO_VARIANT_LIST = ['paper', 'construction'];
+const HERO_VARIANT_LIST = ['paper', 'construction', 'coach'];
 
 // Tiny HSV->RGB (0..1) helper for the background mood tint.
 function hsvToRgb01(h, s, v) {
@@ -177,7 +218,7 @@ export default function App() {
 
   // `color` is either a hex string or null (rainbow mode).
   // Which experience is showing: the fluid 'liquid' or the 'particles' field.
-  const [view, setView] = useState('liquid');
+  const [view, setView] = useState('particles');
 
   const [color, setColor] = useState('#19e3ff');
   const [brushSize, setBrushSize] = useState(3);
@@ -201,7 +242,7 @@ export default function App() {
   const [sunrays, setSunrays] = useState(false);
   const [shading, setShading] = useState(true);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
 
   // User-saved presets, persisted in the browser (localStorage).
   const [customMoods, setCustomMoods] = useState(() => {

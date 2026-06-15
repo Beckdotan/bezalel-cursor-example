@@ -39,6 +39,8 @@ export default function ScrollHero({
   scenes = [],
   reverse = false,
   hint = 'Scroll',
+  loader = 'paper', // which loading animation: 'paper' | 'construction'
+  loaderLabel = 'Loading experience',
 }) {
   const scrollRef = useRef(null); // the tall scrolling container
   const videoRef = useRef(null);
@@ -250,8 +252,26 @@ export default function ScrollHero({
         className={`paper-loader ${loaded ? 'paper-loader--done' : ''}`}
         aria-hidden={loaded}
       >
-        <div className="paper-loader__fold" />
-        <p className="paper-loader__label">Loading experience</p>
+        {loader === 'construction' ? (
+          // A little skyline that rises from the ground, block by block.
+          <div className="cr-loader" aria-hidden="true">
+            <span className="cr-loader__bar" />
+            <span className="cr-loader__bar" />
+            <span className="cr-loader__bar" />
+            <span className="cr-loader__bar" />
+          </div>
+        ) : loader === 'shell' ? (
+          // Expanding rings radiating from a core — emerging + finding a voice.
+          <div className="shell-loader" aria-hidden="true">
+            <span className="shell-loader__ring" />
+            <span className="shell-loader__ring" />
+            <span className="shell-loader__ring" />
+            <span className="shell-loader__core" />
+          </div>
+        ) : (
+          <div className="paper-loader__fold" />
+        )}
+        <p className="paper-loader__label">{loaderLabel}</p>
         <div className="paper-loader__bar">
           <div
             className={`paper-loader__bar-fill ${
