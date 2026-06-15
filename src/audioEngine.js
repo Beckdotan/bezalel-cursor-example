@@ -13,10 +13,20 @@
 
 const BANDS = 24;
 
+// How much to turn the microphone DOWN before analysis (1 = full, 0 = silent).
+// Lower this if the mic still feels too sensitive to background sound.
+const MIC_GAIN = 0.25;
+
+// Noise floor for the microphone, in decibels. Sound quieter than this is
+// treated as silence and ignored. Closer to 0 (e.g. -55) = less sensitive;
+// more negative (e.g. -90) = picks up fainter sound.
+const MIC_MIN_DECIBELS = -65;
+
 export function createAudioEngine() {
   let ctx = null;
   let analyser = null;
   let sourceNode = null;
+  let micGain = null; // attenuates the mic signal so it's less sensitive
   let micStream = null;
   let audioEl = null;
   let rafId = 0;
@@ -102,6 +112,14 @@ export function createAudioEngine() {
       }
       sourceNode = null;
     }
+    if (micGain) {
+      try {
+        micGain.disconnect();
+      } catch {
+        /* already disconnected */
+      }
+      micGain = null;
+    }
     if (micStream) {
       micStream.getTracks().forEach((t) => t.stop());
       micStream = null;
@@ -129,11 +147,34 @@ export function createAudioEngine() {
     async useMic() {
       ensureContext();
       await ctx.resume();
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Turn OFF auto gain control: it auto-boosts quiet input, which makes the
+      // mic feel hyper-sensitive to faint background sound. Noise suppression
+      // and echo cancellation further calm down ambient noise.
+      // Some browsers reject these extra constraints; if so, fall back to a
+      // plain mic request so a real permission prompt can still succeed.
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            autoGainControl: false,
+            noiseSuppression: true,
+            echoCancellation: true,
+          },
+        });
+      } catch (err) {
+        if (err && err.name === 'NotAllowedError') throw err; // truly blocked
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
       disconnectSource();
+      // Raise the noise floor so quiet background sound is ignored (mic only).
+      analyser.minDecibels = MIC_MIN_DECIBELS;
       micStream = stream;
       sourceNode = ctx.createMediaStreamSource(stream);
-      sourceNode.connect(analyser);
+      // Route the mic through a gain node turned below 1 to reduce sensitivity.
+      micGain = ctx.createGain();
+      micGain.gain.value = MIC_GAIN;
+      sourceNode.connect(micGain);
+      micGain.connect(analyser);
       // Note: we do NOT connect the analyser to the speakers for the mic,
       // otherwise you'd hear an echo / feedback loop of your own voice.
       startLoop();
@@ -143,6 +184,7 @@ export function createAudioEngine() {
       ensureContext();
       await ctx.resume();
       disconnectSource();
+      analyser.minDecibels = -100; // default floor; files play at normal level
       audioEl = new Audio();
       audioEl.src = URL.createObjectURL(file);
       audioEl.loop = true;

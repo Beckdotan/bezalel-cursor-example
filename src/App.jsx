@@ -552,8 +552,21 @@ export default function App() {
       setFileName(null);
       setIsPlaying(false);
       setAudioError(null);
-    } catch {
-      setAudioError('Microphone access was blocked. Check browser permissions.');
+    } catch (err) {
+      console.error('Microphone error:', err);
+      const name = err?.name;
+      let message;
+      if (name === 'NotAllowedError' || name === 'SecurityError') {
+        message =
+          'Microphone access was blocked. Click the mic/lock icon in the address bar and allow it, then try again.';
+      } else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+        message = 'No microphone was found. Check that one is connected and enabled.';
+      } else if (name === 'NotReadableError') {
+        message = 'The microphone is in use by another app. Close it and try again.';
+      } else {
+        message = `Could not start the microphone (${name || 'unknown error'}).`;
+      }
+      setAudioError(message);
       setAudioMode('off');
     }
   }
